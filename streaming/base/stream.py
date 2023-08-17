@@ -167,8 +167,6 @@ class Stream:
         if keep_zip is not None:
             self.keep_zip = keep_zip
             self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
-        if self.index_basename is None:
-            self.index_basename = default.index_basename
 
 
     def _get_temporary_directory(self) -> str:
@@ -201,6 +199,8 @@ class Stream:
         if self._keep_zip is None:
             self.keep_zip = default['keep_zip']
             self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
+        if self.index_basename is None:
+            self.index_basename = default['index_basename']
 
     @classmethod
     def validate_weights(cls, streams: Sequence[Self]) -> Tuple[bool, bool]:
