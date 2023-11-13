@@ -55,6 +55,11 @@ class Writer(ABC):
             while writing). Defaults to ``0``.
         extra_bytes_per_sample (int): Extra bytes per serialized sample (for computing shard size
             while writing). Defaults to ``0``.
+        index_basename (str): Name of the base index file. Defaults to "index.json", but
+            can be set to enable accessing different subsets of data in the same storage location,
+            for example:
+                    - s3://my_bucket/train_index.json
+                    - s3://my_bucket/val_index.json
         **kwargs (Any): Additional settings for the Writer.
 
             progress_bar (bool): Display TQDM progress bars for uploading output dataset files to
@@ -77,6 +82,7 @@ class Writer(ABC):
                  size_limit: Optional[Union[int, str]] = 1 << 26,
                  extra_bytes_per_shard: int = 0,
                  extra_bytes_per_sample: int = 0,
+                 index_basename: str = get_index_basename(),
                  **kwargs: Any) -> None:
 
         compression = compression or None
@@ -113,6 +119,7 @@ class Writer(ABC):
         self.extra_bytes_per_sample = extra_bytes_per_sample
         self.new_samples: List[bytes]
         self.new_shard_size: int
+        self.index_basename = index_basename
 
         self.shards = []
 
@@ -263,7 +270,7 @@ class Writer(ABC):
             # the threads.
             self.cancel_future_jobs()
             return
-        basename = get_index_basename()
+        basename = self.index_basename
         filename = os.path.join(self.local, basename)
         obj = {
             'version': 2,

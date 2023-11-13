@@ -86,6 +86,11 @@ class Stream:
         keep_zip (bool, optional): Whether to keep or delete the compressed form when decompressing
             downloaded shards. If ``False``, keep if and only if remote is local or no remote.
             Defaults to ``None``.
+        index_basename (str, optional): Name of the base index file. If not provided, will fall back
+            to the default from apply_defaults. Can be set to enable accessing different
+            subsets of data in the same storage location, for example:
+                    - s3://my_bucket/train_index.json
+                    - s3://my_bucket/val_index.json
     """
 
     def __init__(self,
@@ -99,10 +104,12 @@ class Stream:
                  download_retry: Optional[int] = None,
                  download_timeout: Optional[float] = None,
                  validate_hash: Optional[str] = None,
-                 keep_zip: Optional[bool] = None) -> None:
+                 keep_zip: Optional[bool] = None,
+                 index_basename: Optional[str] = None) -> None:
         self.remote = remote
         self._local = local
         self.split = split or ''
+        self.index_basename = index_basename
 
         has_proportion = proportion is not None
         has_repeat = repeat is not None
@@ -161,6 +168,7 @@ class Stream:
             self.keep_zip = keep_zip
             self.safe_keep_zip = self.keep_zip or self.remote in {None, self.local}
 
+
     def _get_temporary_directory(self) -> str:
         """Construct a path to a temporary directory based on remote and split."""
         root = tempfile.gettempdir()
@@ -191,6 +199,8 @@ class Stream:
         if self._keep_zip is None:
             self.keep_zip = default['keep_zip']
             self.safe_keep_zip = default['keep_zip'] or self.remote in {None, self.local}
+        if self.index_basename is None:
+            self.index_basename = default['index_basename']
 
     @classmethod
     def validate_weights(cls, streams: Sequence[Self]) -> Tuple[bool, bool]:
@@ -431,7 +441,7 @@ class Stream:
             `List[Reader]: Shard readers.
         """
         # Download the index file if it does not exist locally.
-        basename = get_index_basename()
+        basename = self.index_basename
         filename = os.path.join(self.local, self.split, basename)  # pyright: ignore
         if not os.path.exists(filename):
             if world.is_local_leader:
@@ -498,5 +508,5 @@ class Stream:
         Returns:
             int: Size in bytes.
         """
-        filename = os.path.join(self.local, self.split, get_index_basename())
+        filename = os.path.join(self.local, self.split, self.index_basename)
         return os.stat(filename).st_size

@@ -23,15 +23,20 @@ class LocalDataset(Array, Dataset):
     Args:
         local (str): Local dataset directory where shards are cached by split.
         split (str, optional): Which dataset split to use, if any. Defaults to ``None``.
+        index_basename (str): Name of the base index file. Defaults to "index.json", but
+            can be set to enable accessing different subsets of data in the same storage location,
+            for example:
+                    - s3://my_bucket/train_index.json
+                    - s3://my_bucket/val_index.json
     """
 
-    def __init__(self, local: str, split: Optional[str] = None):
+    def __init__(self, local: str, split: Optional[str] = None, index_basename: str = get_index_basename()):
         split = split or ''
 
         self.local = local
         self.split = split
 
-        filename = os.path.join(local, split, get_index_basename())  # pyright: ignore
+        filename = os.path.join(local, split, index_basename)  # pyright: ignore
         obj = json.load(open(filename))
         if obj['version'] != 2:
             raise ValueError(f'Unsupported streaming data version: {obj["version"]}. ' +

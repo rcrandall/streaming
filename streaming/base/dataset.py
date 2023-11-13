@@ -303,6 +303,10 @@ class StreamingDataset(Array, IterableDataset):
             ``None``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
+        default_index_basename (str): Name of the default base index file. If not provided,
+            will default to get_index_basename(). Note that the value provided here will only
+            be used to apply_defaults if index_basename was not set in the individual input streams;
+            it will not overwrite the basename set in the individual streams
     """
 
     def __init__(self,
@@ -324,10 +328,11 @@ class StreamingDataset(Array, IterableDataset):
                  num_canonical_nodes: Optional[int] = None,
                  batch_size: Optional[int] = None,
                  shuffle: bool = False,
-                 shuffle_algo: str = 'py1e',
+                 shuffle_algo: str = 'py1s',
                  shuffle_seed: int = 9176,
                  shuffle_block_size: Optional[int] = None,
-                 batching_method: str = 'random') -> None:
+                 batching_method: str = 'random',
+                 default_index_basename: str = get_index_basename()) -> None:
         # Global arguments (which do not live in Streams).
         self.predownload = predownload
         self.cache_limit = cache_limit
@@ -415,6 +420,7 @@ class StreamingDataset(Array, IterableDataset):
                 'download_timeout': download_timeout,
                 'validate_hash': validate_hash,
                 'keep_zip': keep_zip,
+                'index_basename': default_index_basename
             }
             for stream in streams:
                 stream.apply_default(default)
@@ -425,7 +431,8 @@ class StreamingDataset(Array, IterableDataset):
                              download_retry=download_retry,
                              download_timeout=download_timeout,
                              validate_hash=validate_hash,
-                             keep_zip=keep_zip)
+                             keep_zip=keep_zip,
+                             index_basename=default_index_basename)
             streams = [default]
 
         # Validate the stream weighting scheme (relative or absolute) to catch errors before we go
@@ -455,7 +462,7 @@ class StreamingDataset(Array, IterableDataset):
             stream_shards = stream.get_shards(world)
             num_stream_samples = sum(map(len, stream_shards))
             if not num_stream_samples:
-                index_filename = os.path.join(stream.local, stream.split, get_index_basename())
+                index_filename = os.path.join(stream.local, stream.split, stream.index_basename)
                 raise RuntimeError(f'Stream contains no samples: {index_filename}.')
             stream_per_shard += [stream_id] * len(stream_shards)
             self.shard_offset_per_stream[stream_id] = len(self.shards)
